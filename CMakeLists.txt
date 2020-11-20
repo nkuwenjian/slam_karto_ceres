@@ -33,5 +33,8 @@ include_directories(include
   ${CERES_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME} src/slam_karto_ceres.cpp src/ceres_solver.cpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${CERES_LIBRARIES})
+add_executable(slam_karto_ceres src/slam_karto_ceres.cpp src/ceres_solver.cpp)
+target_link_libraries(slam_karto_ceres ${catkin_LIBRARIES} ${CERES_LIBRARIES})
+
+add_executable(slam_karto_gt src/slam_karto_gt.cpp src/ceres_solver.cpp)
+target_link_libraries(slam_karto_gt ${catkin_LIBRARIES} ${CERES_LIBRARIES})

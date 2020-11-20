@@ -1,6 +1,6 @@
 # General Parameters
-use_scan_matching: true
-use_scan_barycenter: true
+use_scan_matching: True
+use_scan_barycenter: True
 minimum_travel_distance: 0.2 
 minimum_travel_heading: 0.174                 #in radians
 scan_buffer_size: 70
@@ -8,7 +8,7 @@ scan_buffer_maximum_scan_distance: 20.0
 link_match_minimum_response_fine: 0.8
 link_scan_maximum_distance: 10.0
 loop_search_maximum_distance: 4.0
-do_loop_closing: true
+do_loop_closing: True
 loop_match_minimum_chain_size: 10
 loop_match_maximum_variance_coarse: 0.4       # gets squared later
 loop_match_minimum_response_coarse: 0.8
@@ -32,4 +32,4 @@ coarse_search_angle_offset: 0.349             # in degrees (gets converted to ra
 coarse_angle_resolution: 0.0349               # in degrees (gets converted to radians)
 minimum_angle_penalty: 0.9
 minimum_distance_penalty: 0.5
-use_response_expansion: false
+use_response_expansion: False
