@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(slam_karto_ceres)
 
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release) # Debug, Release
 message(STATUS "BUILD TYPE: " ${CMAKE_BUILD_TYPE})
 
 ## Find catkin macros and libraries
@@ -35,6 +35,3 @@ include_directories(include
 
 add_executable(slam_karto_ceres src/slam_karto_ceres.cpp src/ceres_solver.cpp)
 target_link_libraries(slam_karto_ceres ${catkin_LIBRARIES} ${CERES_LIBRARIES})
-
-add_executable(slam_karto_gt src/slam_karto_gt.cpp src/ceres_solver.cpp)
-target_link_libraries(slam_karto_gt ${catkin_LIBRARIES} ${CERES_LIBRARIES})
