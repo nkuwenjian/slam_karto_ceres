@@ -29,4 +29,4 @@ $ rosbag play <rosbagfile> --clock
 ```
 
 ## Remarks
-The source code of the SLAM back-end in this package comes from the [Ceres solver tutorial](http://ceres-solver.org/nnls_tutorial.html#other-examples). It is recommended to read this tutorial to learn more about the use of Ceres.
+The source code of the SLAM back-end in this package comes from the [pose_graph_2d](http://ceres-solver.org/nnls_tutorial.html#other-examples) in Ceres tutorials. It is recommended to read this tutorial to learn more about the use of Ceres.
