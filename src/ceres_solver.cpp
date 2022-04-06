@@ -109,7 +109,7 @@ bool SolveOptimizationProblem(ceres::Problem* problem)
   ceres::Solver::Summary summary;
   ceres::Solve(options, problem, &summary);
 
-  std::cout << summary.FullReport() << '\n';
+  std::cout << summary.BriefReport() << '\n';
 
   return summary.IsSolutionUsable();
 }
