@@ -18,9 +18,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 # Eigen3
 find_package(Eigen3 REQUIRED)
-if(Eigen3_FOUND)
-  message(STATUS ${EIGEN3_INCLUDE_DIRS})
-endif()
 
 # Ceres
 find_package(Ceres REQUIRED)
@@ -29,9 +26,8 @@ catkin_package()
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
   ${CERES_INCLUDE_DIRS}
 )
 
 add_executable(slam_karto_ceres src/slam_karto_ceres.cpp src/ceres_solver.cpp)
-target_link_libraries(slam_karto_ceres ${catkin_LIBRARIES} ${CERES_LIBRARIES})
+target_link_libraries(slam_karto_ceres ${catkin_LIBRARIES} ${CERES_LIBRARIES} Eigen3::Eigen)
