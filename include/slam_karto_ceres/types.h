@@ -32,17 +32,16 @@
 // the graph has a unique integer ID with a position and orientation. There are
 // delta transformation constraints between two vertices.
 
-#ifndef SLAM_KARTO_CERES_TYPES_H
-#define SLAM_KARTO_CERES_TYPES_H
+#pragma once
 
 #include <fstream>
 
 #include "Eigen/Core"
+
 #include "slam_karto_ceres/normalize_angle.h"
 
 // The state for each vertex in the pose graph.
-struct Pose2d
-{
+struct Pose2d {
   double x;
   double y;
   double yaw_radians;
@@ -50,8 +49,7 @@ struct Pose2d
 
 // The constraint between two vertices in the pose graph. The constraint is the
 // transformation from vertex id_begin to vertex id_end.
-struct Constraint2d
-{
+struct Constraint2d {
   int id_begin;
   int id_end;
 
@@ -63,5 +61,3 @@ struct Constraint2d
   // entries are x, y, and yaw.
   Eigen::Matrix3d information;
 };
-
-#endif  // SLAM_KARTO_CERES_TYPES_H

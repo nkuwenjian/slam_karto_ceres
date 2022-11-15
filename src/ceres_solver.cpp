@@ -33,54 +33,56 @@
 // g2o format, formulates and solves the Ceres optimization problem, and outputs
 // the original and optimized poses to file for plotting.
 
+#include "slam_karto_ceres/ceres_solver.h"
+
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "slam_karto_ceres/angle_local_parameterization.h"
 #include "ceres/ceres.h"
+
+#include "slam_karto_ceres/angle_manifold.h"
 #include "slam_karto_ceres/pose_graph_2d_error_term.h"
 #include "slam_karto_ceres/types.h"
-#include "slam_karto_ceres/ceres_solver.h"
 
 // Constructs the nonlinear least squares optimization problem from the pose
 // graph constraints.
-void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints, std::map<int, Pose2d>* poses,
-                              ceres::Problem* problem)
-{
-  assert(poses != NULL);
-  assert(problem != NULL);
-  if (constraints.empty())
-  {
-    std::cout << "No constraints, no problem to optimize.";
+void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints,
+                              std::map<int, Pose2d>* poses,
+                              ceres::Problem* problem) {
+  CHECK(poses != nullptr);
+  CHECK(problem != nullptr);
+  if (constraints.empty()) {
+    LOG(INFO) << "No constraints, no problem to optimize.";
     return;
   }
 
-  ceres::LossFunction* loss_function = NULL;
-  ceres::LocalParameterization* angle_local_parameterization = AngleLocalParameterization::Create();
+  ceres::LossFunction* loss_function = nullptr;
+  ceres::Manifold* angle_manifold = AngleManifold::Create();
 
-  for (std::vector<Constraint2d>::const_iterator constraints_iter = constraints.begin();
-       constraints_iter != constraints.end(); ++constraints_iter)
-  {
-    const Constraint2d& constraint = *constraints_iter;
+  for (const auto& constraint : constraints) {
+    auto pose_begin_iter = poses->find(constraint.id_begin);
+    CHECK(pose_begin_iter != poses->end())
+        << "Pose with ID: " << constraint.id_begin << " not found.";
+    auto pose_end_iter = poses->find(constraint.id_end);
+    CHECK(pose_end_iter != poses->end())
+        << "Pose with ID: " << constraint.id_end << " not found.";
 
-    std::map<int, Pose2d>::iterator pose_begin_iter = poses->find(constraint.id_begin);
-    assert(pose_begin_iter != poses->end());
-    std::map<int, Pose2d>::iterator pose_end_iter = poses->find(constraint.id_end);
-    assert(pose_end_iter != poses->end());
-
-    const Eigen::Matrix3d sqrt_information = constraint.information.llt().matrixL();
+    const Eigen::Matrix3d sqrt_information =
+        constraint.information.llt().matrixL();
     // Ceres will take ownership of the pointer.
-    ceres::CostFunction* cost_function =
-        PoseGraph2dErrorTerm::Create(constraint.x, constraint.y, constraint.yaw_radians, sqrt_information);
-    problem->AddResidualBlock(cost_function, loss_function, &pose_begin_iter->second.x, &pose_begin_iter->second.y,
-                              &pose_begin_iter->second.yaw_radians, &pose_end_iter->second.x, &pose_end_iter->second.y,
-                              &pose_end_iter->second.yaw_radians);
+    ceres::CostFunction* cost_function = PoseGraph2dErrorTerm::Create(
+        constraint.x, constraint.y, constraint.yaw_radians, sqrt_information);
+    problem->AddResidualBlock(
+        cost_function, loss_function, &pose_begin_iter->second.x,
+        &pose_begin_iter->second.y, &pose_begin_iter->second.yaw_radians,
+        &pose_end_iter->second.x, &pose_end_iter->second.y,
+        &pose_end_iter->second.yaw_radians);
 
-    problem->SetParameterization(&pose_begin_iter->second.yaw_radians, angle_local_parameterization);
-    problem->SetParameterization(&pose_end_iter->second.yaw_radians, angle_local_parameterization);
+    problem->SetManifold(&pose_begin_iter->second.yaw_radians, angle_manifold);
+    problem->SetManifold(&pose_end_iter->second.yaw_radians, angle_manifold);
   }
 
   // The pose graph optimization problem has three DOFs that are not fully
@@ -90,17 +92,16 @@ void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints, std:
   // internal damping which mitigate this issue, but it is better to properly
   // constrain the gauge freedom. This can be done by setting one of the poses
   // as constant so the optimizer cannot change it.
-  std::map<int, Pose2d>::iterator pose_start_iter = poses->begin();
-  assert(pose_start_iter != poses->end());
+  auto pose_start_iter = poses->begin();
+  CHECK(pose_start_iter != poses->end()) << "There are no poses.";
   problem->SetParameterBlockConstant(&pose_start_iter->second.x);
   problem->SetParameterBlockConstant(&pose_start_iter->second.y);
   problem->SetParameterBlockConstant(&pose_start_iter->second.yaw_radians);
 }
 
 // Returns true if the solve was successful.
-bool SolveOptimizationProblem(ceres::Problem* problem)
-{
-  assert(problem != NULL);
+bool SolveOptimizationProblem(ceres::Problem* problem) {
+  CHECK(problem != nullptr);
 
   ceres::Solver::Options options;
   options.max_num_iterations = 100;
@@ -109,31 +110,18 @@ bool SolveOptimizationProblem(ceres::Problem* problem)
   ceres::Solver::Summary summary;
   ceres::Solve(options, problem, &summary);
 
-  std::cout << summary.BriefReport() << '\n';
+  std::cout << summary.BriefReport() << "\n";
 
   return summary.IsSolutionUsable();
 }
 
-CeresSolver::CeresSolver()
-{
-}
+void CeresSolver::Clear() { corrections_.clear(); }
 
-CeresSolver::~CeresSolver()
-{
-}
-
-void CeresSolver::Clear()
-{
-  corrections_.clear();
-}
-
-const karto::ScanSolver::IdPoseVector& CeresSolver::GetCorrections() const
-{
+const karto::ScanSolver::IdPoseVector& CeresSolver::GetCorrections() const {
   return corrections_;
 }
 
-void CeresSolver::Compute()
-{
+void CeresSolver::Compute() {
   corrections_.clear();
 
   ROS_INFO("[ceres] Calling ceres for loop closure");
@@ -142,15 +130,15 @@ void CeresSolver::Compute()
   SolveOptimizationProblem(&problem);
   ROS_INFO("[ceres] Finished ceres for loop closure");
 
-  for (std::map<int, Pose2d>::const_iterator pose_iter = poses_.begin(); pose_iter != poses_.end(); ++pose_iter)
-  {
-    karto::Pose2 pose(pose_iter->second.x, pose_iter->second.y, pose_iter->second.yaw_radians);
+  for (std::map<int, Pose2d>::const_iterator pose_iter = poses_.begin();
+       pose_iter != poses_.end(); ++pose_iter) {
+    karto::Pose2 pose(pose_iter->second.x, pose_iter->second.y,
+                      pose_iter->second.yaw_radians);
     corrections_.push_back(std::make_pair(pose_iter->first, pose));
   }
 }
 
-void CeresSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex)
-{
+void CeresSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex) {
   karto::Pose2 pose = pVertex->GetObject()->GetCorrectedPose();
   int pose_id = pVertex->GetObject()->GetUniqueId();
   Pose2d pose2d;
@@ -162,8 +150,7 @@ void CeresSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex)
   ROS_DEBUG("[ceres] AddNode %d", pVertex->GetObject()->GetUniqueId());
 }
 
-void CeresSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge)
-{
+void CeresSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge) {
   karto::LocalizedRangeScan* pSource = pEdge->GetSource()->GetObject();
   karto::LocalizedRangeScan* pTarget = pEdge->GetTarget()->GetObject();
   karto::LinkInfo* pLinkInfo = (karto::LinkInfo*)(pEdge->GetLabel());
@@ -188,5 +175,6 @@ void CeresSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge)
   constraint2d.information = info;
   constraints_.push_back(constraint2d);
 
-  ROS_DEBUG("[ceres] AddConstraint %d  %d", pSource->GetUniqueId(), pTarget->GetUniqueId());
+  ROS_DEBUG("[ceres] AddConstraint %d  %d", pSource->GetUniqueId(),
+            pTarget->GetUniqueId());
 }
