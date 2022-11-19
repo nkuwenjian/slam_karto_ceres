@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<launch>
+  <!-- Please set up the scan topic and odom frame according to your datasets -->
+  <node pkg="slam_karto_ceres" type="slam_karto_tutorial" name="slam_karto_tutorial" output="screen" launch-prefix="valgrind --tool=memcheck --leak-check=full"/>
+</launch>

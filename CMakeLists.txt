@@ -28,8 +28,13 @@ catkin_package()
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
-  ${CERES_INCLUDE_DIRS}
 )
 
-add_executable(slam_karto_ceres src/slam_karto_ceres.cpp src/ceres_solver.cpp)
-target_link_libraries(slam_karto_ceres ${catkin_LIBRARIES} ${CERES_LIBRARIES} Eigen3::Eigen)
+add_library(ceres_solver src/ceres_solver.cpp)
+target_link_libraries(ceres_solver Ceres::ceres Eigen3::Eigen ${catkin_LIBRARIES})
+
+add_executable(slam_karto_ceres src/slam_karto_ceres.cpp)
+target_link_libraries(slam_karto_ceres ceres_solver ${catkin_LIBRARIES})
+
+add_executable(slam_karto_tutorial tutorial/slam_karto_tutorial.cpp)
+target_link_libraries(slam_karto_tutorial ceres_solver)
