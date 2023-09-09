@@ -5,16 +5,16 @@ After that, please create and initialize a ROS workspace. We assume that your wo
 ```
 $ cd ~/catkin_ws/src/
 $ git clone https://github.com/ros-perception/open_karto.git
-$ cd ..
-$ catkin_make
+$ cd ../
+$ catkin_make -DCMAKE_BUILD_TYPE=Release
 ```
 
 After the above preparation, clone and build this package:
 ```
 $ cd ~/catkin_ws/src/
 $ git clone https://github.com/nkuwenjian/slam_karto_ceres.git
-$ cd ..
-$ catkin_make
+$ cd ../
+$ catkin_make -DCMAKE_BUILD_TYPE=Release
 ```
 
 Finally, run the following commands to launch Karto SLAM:
