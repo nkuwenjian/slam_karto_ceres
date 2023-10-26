@@ -17,178 +17,185 @@
 
 #include <memory>
 
+#include "glog/logging.h"
 #include "open_karto/Mapper.h"
 
 #include "slam_karto_ceres/ceres_solver.h"
+
+namespace slam_karto_ceres {
 
 /**
  * Sample code to demonstrate karto map creation
  * Create a laser range finder device and three "dummy" range scans.
  * Add the device and range scans to a karto Mapper.
  */
-std::unique_ptr<karto::Dataset> CreateMap(
-    std::shared_ptr<karto::Mapper> pMapper) {
-  std::unique_ptr<karto::Dataset> pDataset = std::make_unique<karto::Dataset>();
+std::unique_ptr<karto::Dataset> CreateMap(karto::Mapper* mapper) {
+  // Sanity checks.
+  CHECK_NOTNULL(mapper);
 
-  /////////////////////////////////////
+  std::unique_ptr<karto::Dataset> dataset = std::make_unique<karto::Dataset>();
+
   // Create a laser range finder device - use SmartPointer to let karto
   // subsystem manage memory.
   karto::Name name("laser0");
-  karto::LaserRangeFinder* pLaserRangeFinder =
+  karto::LaserRangeFinder* laser =
       karto::LaserRangeFinder::CreateLaserRangeFinder(
           karto::LaserRangeFinder_Custom, name);
-  pLaserRangeFinder->SetOffsetPose(karto::Pose2(1.0, 0.0, 0.0));
-  pLaserRangeFinder->SetAngularResolution(karto::math::DegreesToRadians(0.5));
-  pLaserRangeFinder->SetRangeThreshold(12.0);
+  laser->SetOffsetPose({1.0, 0.0, 0.0});
+  laser->SetAngularResolution(karto::math::DegreesToRadians(0.5));
+  laser->SetRangeThreshold(12.0);
 
-  pDataset->Add(pLaserRangeFinder);
+  dataset->Add(laser);
 
-  /////////////////////////////////////
   // Create three localized range scans, all using the same range readings, but
   // with different poses.
-  karto::LocalizedRangeScan* pLocalizedRangeScan = nullptr;
-
-  // 1. localized range scan
 
   // Create a vector of range readings. Simple example where all the
   // measurements are the same value.
-  std::vector<kt_double> readings;
-  for (int i = 0; i < 361; i++) {
-    readings.push_back(3.0);
+  std::vector<kt_double> readings(361, 3.0);
+
+  {
+    // Create localized range scan.
+    karto::LocalizedRangeScan* range_scan =
+        new karto::LocalizedRangeScan(name, readings);
+    range_scan->SetOdometricPose({0.0, 0.0, 0.0});
+    range_scan->SetCorrectedPose({0.0, 0.0, 0.0});
+
+    // Add the localized range scan to the mapper.
+    mapper->Process(range_scan);
+    LOG(INFO) << std::fixed
+              << "Odometric pose: " << range_scan->GetOdometricPose()
+              << ", corrected pose: " << range_scan->GetCorrectedPose();
+
+    // Add the localized range scan to the dataset.
+    dataset->Add(range_scan);
   }
 
-  // create localized range scan
-  pLocalizedRangeScan = new karto::LocalizedRangeScan(name, readings);
-  pLocalizedRangeScan->SetOdometricPose(karto::Pose2(0.0, 0.0, 0.0));
-  pLocalizedRangeScan->SetCorrectedPose(karto::Pose2(0.0, 0.0, 0.0));
+  {
+    // Create localized range scan.
+    karto::LocalizedRangeScan* range_scan =
+        new karto::LocalizedRangeScan(name, readings);
+    range_scan->SetOdometricPose({1.0, 0.0, 1.57});
+    range_scan->SetCorrectedPose({1.0, 0.0, 1.57});
 
-  // Add the localized range scan to the mapper
-  pMapper->Process(pLocalizedRangeScan);
-  std::cout << "Pose: " << pLocalizedRangeScan->GetOdometricPose()
-            << " Corrected Pose: " << pLocalizedRangeScan->GetCorrectedPose()
-            << std::endl;
+    // Add the localized range scan to the mapper.
+    mapper->Process(range_scan);
+    LOG(INFO) << std::fixed
+              << "Odometric pose: " << range_scan->GetOdometricPose()
+              << ", corrected pose: " << range_scan->GetCorrectedPose();
 
-  // Add the localized range scan to the dataset
-  pDataset->Add(pLocalizedRangeScan);
+    // Add the localized range scan to the dataset.
+    dataset->Add(range_scan);
+  }
 
-  // 2. localized range scan
+  {
+    // Create localized range scan.
+    karto::LocalizedRangeScan* range_scan =
+        new karto::LocalizedRangeScan(name, readings);
+    range_scan->SetOdometricPose({1.0, -1.0, 2.35619449});
+    range_scan->SetCorrectedPose({1.0, -1.0, 2.35619449});
 
-  // create localized range scan
-  pLocalizedRangeScan = new karto::LocalizedRangeScan(name, readings);
-  pLocalizedRangeScan->SetOdometricPose(karto::Pose2(1.0, 0.0, 1.57));
-  pLocalizedRangeScan->SetCorrectedPose(karto::Pose2(1.0, 0.0, 1.57));
+    // Add the localized range scan to the mapper.
+    mapper->Process(range_scan);
+    LOG(INFO) << std::fixed
+              << "Odometric pose: " << range_scan->GetOdometricPose()
+              << ", corrected pose: " << range_scan->GetCorrectedPose();
 
-  // Add the localized range scan to the mapper
-  pMapper->Process(pLocalizedRangeScan);
-  std::cout << "Pose: " << pLocalizedRangeScan->GetOdometricPose()
-            << " Corrected Pose: " << pLocalizedRangeScan->GetCorrectedPose()
-            << std::endl;
+    // Add the localized range scan to the dataset.
+    dataset->Add(range_scan);
+  }
 
-  // Add the localized range scan to the dataset
-  pDataset->Add(pLocalizedRangeScan);
-
-  // 3. localized range scan
-
-  // create localized range scan
-  pLocalizedRangeScan = new karto::LocalizedRangeScan(name, readings);
-  pLocalizedRangeScan->SetOdometricPose(karto::Pose2(1.0, -1.0, 2.35619449));
-  pLocalizedRangeScan->SetCorrectedPose(karto::Pose2(1.0, -1.0, 2.35619449));
-
-  // Add the localized range scan to the mapper
-  pMapper->Process(pLocalizedRangeScan);
-  std::cout << "Pose: " << pLocalizedRangeScan->GetOdometricPose()
-            << " Corrected Pose: " << pLocalizedRangeScan->GetCorrectedPose()
-            << std::endl;
-
-  // Add the localized range scan to the dataset
-  pDataset->Add(pLocalizedRangeScan);
-
-  return pDataset;
+  return dataset;
 }
 
 /**
  * Sample code to demonstrate basic occupancy grid creation and print occupancy
  * grid.
  */
-std::shared_ptr<karto::OccupancyGrid> CreateOccupancyGrid(
-    std::shared_ptr<karto::Mapper> pMapper, kt_double resolution) {
-  std::cout << "Generating map..." << std::endl;
+std::unique_ptr<karto::OccupancyGrid> CreateOccupancyGrid(
+    karto::Mapper* mapper, kt_double resolution) {
+  // Sanity checks.
+  CHECK_NOTNULL(mapper);
+  LOG(INFO) << "Generating map...";
 
-  // Create a map (occupancy grid) - time it
-  std::shared_ptr<karto::OccupancyGrid> pOccupancyGrid(
-      karto::OccupancyGrid::CreateFromScans(pMapper->GetAllProcessedScans(),
+  // Create a map (occupancy grid) - time it.
+  std::unique_ptr<karto::OccupancyGrid> occ_grid(
+      karto::OccupancyGrid::CreateFromScans(mapper->GetAllProcessedScans(),
                                             resolution));
-
-  return pOccupancyGrid;
+  return occ_grid;
 }
 
 /**
- * Sample code to print a basic occupancy grid
+ * Sample code to print a basic occupancy grid.
  */
-void PrintOccupancyGrid(std::shared_ptr<karto::OccupancyGrid> pOccupancyGrid) {
-  if (pOccupancyGrid != nullptr) {
-    // Output ASCII representation of map
-    kt_int32s width = pOccupancyGrid->GetWidth();
-    kt_int32s height = pOccupancyGrid->GetHeight();
-    karto::Vector2<kt_double> offset =
-        pOccupancyGrid->GetCoordinateConverter()->GetOffset();
+void PrintOccupancyGrid(const karto::OccupancyGrid* occ_grid) {
+  if (occ_grid == nullptr) {
+    return;
+  }
 
-    std::cout << "width = " << width << ", height = " << height << ", scale = "
-              << pOccupancyGrid->GetCoordinateConverter()->GetScale()
-              << ", offset: " << offset.GetX() << ", " << offset.GetY()
-              << std::endl;
-    for (kt_int32s y = height - 1; y >= 0; y--) {
-      for (kt_int32s x = 0; x < width; x++) {
-        // Getting the value at position x,y
-        kt_int8u value =
-            pOccupancyGrid->GetValue(karto::Vector2<kt_int32s>(x, y));
+  // Output ASCII representation of map.
+  kt_int32s width = occ_grid->GetWidth();
+  kt_int32s height = occ_grid->GetHeight();
+  karto::Vector2<kt_double> offset =
+      occ_grid->GetCoordinateConverter()->GetOffset();
 
-        switch (value) {
-          case karto::GridStates_Unknown:
-            std::cout << "*";
-            break;
-          case karto::GridStates_Occupied:
-            std::cout << "X";
-            break;
-          case karto::GridStates_Free:
-            std::cout << " ";
-            break;
-          default:
-            std::cout << "?";
-        }
+  LOG(INFO) << std::fixed << "width: " << width << ", height: " << height
+            << ", scale: " << occ_grid->GetCoordinateConverter()->GetScale()
+            << ", offset: (" << offset.GetX() << "," << offset.GetY() << ").";
+
+  for (kt_int32s y = height - 1; y >= 0; y--) {
+    for (kt_int32s x = 0; x < width; x++) {
+      // Getting the value at position (x,y).
+      kt_int8u value = occ_grid->GetValue(karto::Vector2<kt_int32s>(x, y));
+
+      switch (value) {
+        case karto::GridStates_Unknown:
+          std::cout << "*";
+          break;
+        case karto::GridStates_Occupied:
+          std::cout << "X";
+          break;
+        case karto::GridStates_Free:
+          std::cout << " ";
+          break;
+        default:
+          std::cout << "?";
       }
-      std::cout << std::endl;
     }
     std::cout << std::endl;
   }
+  std::cout << std::endl;
 }
 
-int main(int /*argc*/, char** /*argv*/) {
-  // use try/catch to catch karto exceptions that might be thrown by the karto
-  // subsystem.
-  /////////////////////////////////////
-  // Get karto default mapper
-  std::shared_ptr<karto::Mapper> pMapper = std::make_shared<karto::Mapper>();
-  if (pMapper != nullptr) {
-    // set solver
-    std::unique_ptr<CeresSolver> pSolver = std::make_unique<CeresSolver>();
-    pMapper->SetScanSolver(pSolver.get());
+}  // namespace slam_karto_ceres
 
-    /////////////////////////////////////
-    // sample code that creates a map from sample device and sample localized
-    // range scans
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  FLAGS_logtostderr = true;
 
-    // clear mapper
-    pMapper->Reset();
+  // Create karto default mapper.
+  std::unique_ptr<karto::Mapper> mapper = std::make_unique<karto::Mapper>();
 
-    // create map from created dataset
-    std::unique_ptr<karto::Dataset> pDataset = CreateMap(pMapper);
+  // Create and set solver.
+  std::unique_ptr<slam_karto_ceres::CeresSolver> solver =
+      std::make_unique<slam_karto_ceres::CeresSolver>();
+  mapper->SetScanSolver(solver.get());
 
-    // create occupancy grid at 0.1 resolution and print grid
-    std::shared_ptr<karto::OccupancyGrid> pOccupancyGrid =
-        CreateOccupancyGrid(pMapper, 0.1);
-    PrintOccupancyGrid(pOccupancyGrid);
-  }
+  // Sample code that creates a map from sample device and sample localized
+  // range scans.
+
+  // Clear mapper.
+  mapper->Reset();
+
+  // Create map from created dataset.
+  std::unique_ptr<karto::Dataset> dataset =
+      slam_karto_ceres::CreateMap(mapper.get());
+
+  // Create occupancy grid at 0.1 meters resolution and print grid.
+  std::unique_ptr<karto::OccupancyGrid> occ_grid =
+      slam_karto_ceres::CreateOccupancyGrid(mapper.get(), 0.1);
+
+  slam_karto_ceres::PrintOccupancyGrid(occ_grid.get());
 
   return 0;
 }

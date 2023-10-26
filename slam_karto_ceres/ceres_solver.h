@@ -41,17 +41,19 @@
 
 #include "slam_karto_ceres/types.h"
 
+namespace slam_karto_ceres {
+
 class CeresSolver : public karto::ScanSolver {
  public:
   CeresSolver() = default;
-  virtual ~CeresSolver() = default;
+  ~CeresSolver() override = default;
 
-  virtual void Clear();
-  virtual void Compute();
-  virtual const karto::ScanSolver::IdPoseVector& GetCorrections() const;
+  void Clear() override;
+  void Compute() override;
+  const karto::ScanSolver::IdPoseVector& GetCorrections() const override;
 
-  virtual void AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex);
-  virtual void AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge);
+  void AddNode(karto::Vertex<karto::LocalizedRangeScan>* vertex) override;
+  void AddConstraint(karto::Edge<karto::LocalizedRangeScan>* edge) override;
 
  private:
   std::map<int, Pose2d> poses_;
@@ -59,3 +61,5 @@ class CeresSolver : public karto::ScanSolver {
 
   karto::ScanSolver::IdPoseVector corrections_;
 };
+
+}  // namespace slam_karto_ceres

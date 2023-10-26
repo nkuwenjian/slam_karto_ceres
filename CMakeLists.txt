@@ -5,7 +5,12 @@ project(slam_karto_ceres)
 add_compile_options(-std=c++14)
 
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra")
+
+# set(CMAKE_CXX_CLANG_TIDY
+#   clang-tidy;
+#   -header-filter=${PROJECT_SOURCE_DIR}/slam_karto_ceres;
+#   -warnings-as-errors=*;
+# )
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -25,16 +30,20 @@ find_package(Eigen3 REQUIRED)
 # Ceres
 find_package(Ceres 2.1.0 REQUIRED)
 
+# Glog
+find_package(glog REQUIRED)
+
 catkin_package()
 
-include_directories(include
+include_directories(
+  ${PROJECT_SOURCE_DIR}
   ${catkin_INCLUDE_DIRS}
 )
 
-add_library(ceres_solver src/ceres_solver.cpp)
-target_link_libraries(ceres_solver Ceres::ceres Eigen3::Eigen ${catkin_LIBRARIES})
+add_library(ceres_solver slam_karto_ceres/ceres_solver.cc)
+target_link_libraries(ceres_solver Ceres::ceres Eigen3::Eigen glog::glog ${catkin_LIBRARIES})
 
-add_executable(slam_karto_ceres src/slam_karto_ceres.cpp)
+add_executable(slam_karto_ceres slam_karto_ceres/slam_karto_ceres.cc)
 target_link_libraries(slam_karto_ceres ceres_solver ${catkin_LIBRARIES})
 
 add_executable(slam_karto_tutorial tutorial/slam_karto_tutorial.cpp)

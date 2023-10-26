@@ -34,6 +34,9 @@
 
 #include "ceres/ceres.h"
 
+namespace slam_karto_ceres {
+namespace cost_functor {
+
 // Normalizes the angle in radians between [-pi and pi).
 template <typename T>
 inline T NormalizeAngle(const T& angle_radians) {
@@ -42,3 +45,6 @@ inline T NormalizeAngle(const T& angle_radians) {
   return angle_radians -
          two_pi * ceres::floor((angle_radians + T(M_PI)) / two_pi);
 }
+
+}  // namespace cost_functor
+}  // namespace slam_karto_ceres

@@ -32,7 +32,13 @@
 
 #pragma once
 
+#include <utility>
+
 #include "Eigen/Core"
+#include "ceres/ceres.h"
+
+namespace slam_karto_ceres {
+namespace cost_functor {
 
 template <typename T>
 Eigen::Matrix<T, 2, 2> RotationMatrix2D(T yaw_radians) {
@@ -56,10 +62,10 @@ Eigen::Matrix<T, 2, 2> RotationMatrix2D(T yaw_radians) {
 class PoseGraph2dErrorTerm {
  public:
   PoseGraph2dErrorTerm(double x_ab, double y_ab, double yaw_ab_radians,
-                       const Eigen::Matrix3d& sqrt_information)
+                       Eigen::Matrix3d&& sqrt_information)
       : p_ab_(x_ab, y_ab),
         yaw_ab_radians_(yaw_ab_radians),
-        sqrt_information_(sqrt_information) {}
+        sqrt_information_(std::move(sqrt_information)) {}
 
   template <typename T>
   bool operator()(const T* const x_a, const T* const y_a, const T* const yaw_a,
@@ -84,10 +90,10 @@ class PoseGraph2dErrorTerm {
 
   static ceres::CostFunction* Create(double x_ab, double y_ab,
                                      double yaw_ab_radians,
-                                     const Eigen::Matrix3d& sqrt_information) {
+                                     Eigen::Matrix3d&& sqrt_information) {
     return (new ceres::AutoDiffCostFunction<PoseGraph2dErrorTerm, 3, 1, 1, 1, 1,
                                             1, 1>(new PoseGraph2dErrorTerm(
-        x_ab, y_ab, yaw_ab_radians, sqrt_information)));
+        x_ab, y_ab, yaw_ab_radians, std::move(sqrt_information))));
   }
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -100,3 +106,6 @@ class PoseGraph2dErrorTerm {
   // The inverse square root of the measurement covariance matrix.
   const Eigen::Matrix3d sqrt_information_;
 };
+
+}  // namespace cost_functor
+}  // namespace slam_karto_ceres

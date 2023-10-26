@@ -33,7 +33,10 @@
 
 #include "ceres/autodiff_manifold.h"
 
-#include "slam_karto_ceres/normalize_angle.h"
+#include "slam_karto_ceres/cost_functor/normalize_angle.h"
+
+namespace slam_karto_ceres {
+namespace cost_functor {
 
 // Defines a manifold for updating the angle to be constrained in [-pi to pi).
 class AngleManifold {
@@ -58,3 +61,6 @@ class AngleManifold {
     return new ceres::AutoDiffManifold<AngleManifold, 1, 1>;
   }
 };
+
+}  // namespace cost_functor
+}  // namespace slam_karto_ceres

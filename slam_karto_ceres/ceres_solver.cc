@@ -39,14 +39,19 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ceres/ceres.h"
+#include "glog/logging.h"
 
-#include "slam_karto_ceres/angle_manifold.h"
-#include "slam_karto_ceres/pose_graph_2d_error_term.h"
+#include "slam_karto_ceres/cost_functor/angle_manifold.h"
+#include "slam_karto_ceres/cost_functor/pose_graph_2d_error_term.h"
 #include "slam_karto_ceres/types.h"
 
+namespace slam_karto_ceres {
+
+namespace {
 // Constructs the nonlinear least squares optimization problem from the pose
 // graph constraints.
 void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints,
@@ -60,7 +65,7 @@ void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints,
   }
 
   ceres::LossFunction* loss_function = nullptr;
-  ceres::Manifold* angle_manifold = AngleManifold::Create();
+  ceres::Manifold* angle_manifold = cost_functor::AngleManifold::Create();
 
   for (const auto& constraint : constraints) {
     auto pose_begin_iter = poses->find(constraint.id_begin);
@@ -70,11 +75,12 @@ void BuildOptimizationProblem(const std::vector<Constraint2d>& constraints,
     CHECK(pose_end_iter != poses->end())
         << "Pose with ID: " << constraint.id_end << " not found.";
 
-    const Eigen::Matrix3d sqrt_information =
-        constraint.information.llt().matrixL();
+    Eigen::Matrix3d sqrt_information = constraint.information.llt().matrixL();
     // Ceres will take ownership of the pointer.
-    ceres::CostFunction* cost_function = PoseGraph2dErrorTerm::Create(
-        constraint.x, constraint.y, constraint.yaw_radians, sqrt_information);
+    ceres::CostFunction* cost_function =
+        cost_functor::PoseGraph2dErrorTerm::Create(constraint.x, constraint.y,
+                                                   constraint.yaw_radians,
+                                                   std::move(sqrt_information));
     problem->AddResidualBlock(
         cost_function, loss_function, &pose_begin_iter->second.x,
         &pose_begin_iter->second.y, &pose_begin_iter->second.yaw_radians,
@@ -110,10 +116,12 @@ bool SolveOptimizationProblem(ceres::Problem* problem) {
   ceres::Solver::Summary summary;
   ceres::Solve(options, problem, &summary);
 
-  std::cout << summary.BriefReport() << "\n";
+  LOG(INFO) << summary.BriefReport();
 
   return summary.IsSolutionUsable();
 }
+
+}  // namespace
 
 void CeresSolver::Clear() { corrections_.clear(); }
 
@@ -124,57 +132,60 @@ const karto::ScanSolver::IdPoseVector& CeresSolver::GetCorrections() const {
 void CeresSolver::Compute() {
   corrections_.clear();
 
-  ROS_INFO("[ceres] Calling ceres for loop closure");
+  LOG(INFO) << "Calling ceres for loop closure.";
+
   ceres::Problem problem;
   BuildOptimizationProblem(constraints_, &poses_, &problem);
   SolveOptimizationProblem(&problem);
-  ROS_INFO("[ceres] Finished ceres for loop closure");
 
-  for (std::map<int, Pose2d>::const_iterator pose_iter = poses_.begin();
-       pose_iter != poses_.end(); ++pose_iter) {
-    karto::Pose2 pose(pose_iter->second.x, pose_iter->second.y,
-                      pose_iter->second.yaw_radians);
-    corrections_.push_back(std::make_pair(pose_iter->first, pose));
+  LOG(INFO) << "Finished ceres for loop closure.";
+
+  for (const auto& iter : poses_) {
+    corrections_.emplace_back(
+        iter.first,
+        karto::Pose2{iter.second.x, iter.second.y, iter.second.yaw_radians});
   }
 }
 
-void CeresSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* pVertex) {
-  karto::Pose2 pose = pVertex->GetObject()->GetCorrectedPose();
-  int pose_id = pVertex->GetObject()->GetUniqueId();
+void CeresSolver::AddNode(karto::Vertex<karto::LocalizedRangeScan>* vertex) {
+  const karto::Pose2& pose = vertex->GetObject()->GetCorrectedPose();
+  int pose_id = vertex->GetObject()->GetUniqueId();
   Pose2d pose2d;
   pose2d.x = pose.GetX();
   pose2d.y = pose.GetY();
   pose2d.yaw_radians = pose.GetHeading();
   poses_[pose_id] = pose2d;
 
-  ROS_DEBUG("[ceres] AddNode %d", pVertex->GetObject()->GetUniqueId());
+  VLOG(4) << "AddNode id: " << vertex->GetObject()->GetUniqueId();
 }
 
-void CeresSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* pEdge) {
-  karto::LocalizedRangeScan* pSource = pEdge->GetSource()->GetObject();
-  karto::LocalizedRangeScan* pTarget = pEdge->GetTarget()->GetObject();
-  karto::LinkInfo* pLinkInfo = (karto::LinkInfo*)(pEdge->GetLabel());
+void CeresSolver::AddConstraint(karto::Edge<karto::LocalizedRangeScan>* edge) {
+  karto::LocalizedRangeScan* source = edge->GetSource()->GetObject();
+  karto::LocalizedRangeScan* target = edge->GetTarget()->GetObject();
+  auto* link_info = dynamic_cast<karto::LinkInfo*>(edge->GetLabel());
 
-  karto::Pose2 diff = pLinkInfo->GetPoseDifference();
-  karto::Matrix3 precisionMatrix = pLinkInfo->GetCovariance().Inverse();
+  const karto::Pose2& diff = link_info->GetPoseDifference();
+  karto::Matrix3 precision_matrix = link_info->GetCovariance().Inverse();
   Eigen::Matrix<double, 3, 3> info;
-  info(0, 0) = precisionMatrix(0, 0);
-  info(0, 1) = info(1, 0) = precisionMatrix(0, 1);
-  info(0, 2) = info(2, 0) = precisionMatrix(0, 2);
-  info(1, 1) = precisionMatrix(1, 1);
-  info(1, 2) = info(2, 1) = precisionMatrix(1, 2);
-  info(2, 2) = precisionMatrix(2, 2);
+  info(0, 0) = precision_matrix(0, 0);
+  info(0, 1) = info(1, 0) = precision_matrix(0, 1);
+  info(0, 2) = info(2, 0) = precision_matrix(0, 2);
+  info(1, 1) = precision_matrix(1, 1);
+  info(1, 2) = info(2, 1) = precision_matrix(1, 2);
+  info(2, 2) = precision_matrix(2, 2);
   Eigen::Vector3d measurement(diff.GetX(), diff.GetY(), diff.GetHeading());
 
   Constraint2d constraint2d;
-  constraint2d.id_begin = pSource->GetUniqueId();
-  constraint2d.id_end = pTarget->GetUniqueId();
+  constraint2d.id_begin = source->GetUniqueId();
+  constraint2d.id_end = target->GetUniqueId();
   constraint2d.x = measurement(0);
   constraint2d.y = measurement(1);
   constraint2d.yaw_radians = measurement(2);
   constraint2d.information = info;
-  constraints_.push_back(constraint2d);
+  constraints_.push_back(std::move(constraint2d));
 
-  ROS_DEBUG("[ceres] AddConstraint %d  %d", pSource->GetUniqueId(),
-            pTarget->GetUniqueId());
+  VLOG(4) << "AddConstraint source id: " << source->GetUniqueId()
+          << ", target id: " << target->GetUniqueId();
 }
+
+}  // namespace slam_karto_ceres

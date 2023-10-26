@@ -38,7 +38,9 @@
 
 #include "Eigen/Core"
 
-#include "slam_karto_ceres/normalize_angle.h"
+#include "slam_karto_ceres/cost_functor/normalize_angle.h"
+
+namespace slam_karto_ceres {
 
 // The state for each vertex in the pose graph.
 struct Pose2d {
@@ -61,3 +63,5 @@ struct Constraint2d {
   // entries are x, y, and yaw.
   Eigen::Matrix3d information;
 };
+
+}  // namespace slam_karto_ceres
