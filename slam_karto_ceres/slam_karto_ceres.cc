@@ -67,8 +67,8 @@ class SlamKartoCeres {
   void LaserCallback(const sensor_msgs::LaserScan::ConstPtr& scan);
   bool MapCallback(nav_msgs::GetMap::Request& req,    // NOLINT
                    nav_msgs::GetMap::Response& res);  // NOLINT
-  void GetRosParameters(const ros::NodeHandle& nh,
-                        double* transform_publish_period);
+  void LoadRosParamFromNodeHandle(const ros::NodeHandle& nh,
+                                  double* transform_publish_period);
   bool GetOdomPose(karto::Pose2* karto_pose, const ros::Time& t);
   const karto::LaserRangeFinder* GetLaser(
       const sensor_msgs::LaserScan::ConstPtr& scan);
@@ -147,7 +147,7 @@ void SlamKartoCeres::Initialize() {
   // Retrieve parameters
   ros::NodeHandle private_nh("~");
   double transform_publish_period;
-  GetRosParameters(private_nh, &transform_publish_period);
+  LoadRosParamFromNodeHandle(private_nh, &transform_publish_period);
 
   // Create a thread to periodically publish the latest map->odom transform; it
   // needs to go out regularly, uninterrupted by potentially long periods of
@@ -158,10 +158,14 @@ void SlamKartoCeres::Initialize() {
       });
 }
 
-SlamKartoCeres::~SlamKartoCeres() { transform_thread_->join(); }
+SlamKartoCeres::~SlamKartoCeres() {
+  if (transform_thread_ != nullptr) {
+    transform_thread_->join();
+  }
+}
 
-void SlamKartoCeres::GetRosParameters(const ros::NodeHandle& nh,
-                                      double* transform_publish_period) {
+void SlamKartoCeres::LoadRosParamFromNodeHandle(
+    const ros::NodeHandle& nh, double* transform_publish_period) {
   // Sanity checks.
   CHECK_NOTNULL(mapper_);
 
