@@ -43,7 +43,10 @@ include_directories(
 add_library(ceres_solver slam_karto_ceres/ceres_solver.cc)
 target_link_libraries(ceres_solver Ceres::ceres Eigen3::Eigen glog::glog ${catkin_LIBRARIES})
 
-add_executable(slam_karto_ceres slam_karto_ceres/slam_karto_ceres.cc)
+add_executable(slam_karto_ceres
+  slam_karto_ceres/slam_karto_ceres.cc
+  slam_karto_ceres/slam_karto_ceres_node.cc
+)
 target_link_libraries(slam_karto_ceres ceres_solver ${catkin_LIBRARIES})
 
 add_executable(slam_karto_tutorial tutorial/slam_karto_tutorial.cpp)
