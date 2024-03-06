@@ -5,6 +5,7 @@ project(slam_karto_ceres)
 add_compile_options(-std=c++14)
 
 set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra")
 
 # set(CMAKE_CXX_CLANG_TIDY
 #   clang-tidy;
@@ -49,5 +50,5 @@ add_executable(slam_karto_ceres
 )
 target_link_libraries(slam_karto_ceres ceres_solver ${catkin_LIBRARIES})
 
-add_executable(slam_karto_tutorial tutorial/slam_karto_tutorial.cpp)
-target_link_libraries(slam_karto_tutorial ceres_solver)
+add_executable(slam_karto_ceres_test test/slam_karto_ceres_test.cc)
+target_link_libraries(slam_karto_ceres_test ceres_solver)
